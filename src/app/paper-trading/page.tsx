@@ -9,7 +9,7 @@ import { PaperTradingTour } from "@/components/dashboard/paper-trading-tour";
 import { DollarSign, Wallet, TrendingDown, Briefcase } from "lucide-react";
 import { useAuth } from '@/context/auth-context';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot, collection, query, getDocs } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, getDocs, writeBatch } from 'firebase/firestore';
 import type { PortfolioItem } from '@/data/portfolio';
 
 export default function PaperTradingPage() {
@@ -45,6 +45,36 @@ export default function PaperTradingPage() {
         portfolioUnsub();
       };
     }
+  }, [user]);
+
+  // Effect for simulating real-time price updates
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(async () => {
+      const portfolioQuery = query(collection(db, `users/${user.uid}/portfolio`));
+      const querySnapshot = await getDocs(portfolioQuery);
+      
+      if (querySnapshot.empty) return;
+
+      const batch = writeBatch(db);
+      querySnapshot.forEach(docSnap => {
+        const stock = docSnap.data() as PortfolioItem;
+        const priceChange = (Math.random() - 0.5) * (stock.currentPrice * 0.01); // Fluctuate by +/- 0.5%
+        const newPrice = Math.max(0.01, stock.currentPrice + priceChange); // Ensure price doesn't go below 0.01
+        
+        const newProfit = (newPrice * stock.shares) - stock.totalCost;
+
+        const docRef = doc(db, `users/${user.uid}/portfolio`, docSnap.id);
+        batch.update(docRef, { 
+            currentPrice: newPrice,
+            profit: newProfit
+        });
+      });
+      await batch.commit();
+
+    }, 3000); // Update prices every 3 seconds
+
+    return () => clearInterval(interval);
   }, [user]);
 
   const totalAccountValue = portfolioValue + cashBalance;

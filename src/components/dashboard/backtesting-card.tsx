@@ -46,7 +46,7 @@ export function BacktestingCard() {
       const res = await backtestWithProfitFeatures({
         strategyDefinition: `${strategy} for ${stock}`,
         historicalData: "Fetch from 2023-01-01 to 2024-01-01",
-        apiKey: "",
+        apiKey: "d2u7551r01qo4hodtv10d2u7551r01qo4hodtv1g",
       });
       setResult(res);
     } catch (error) {

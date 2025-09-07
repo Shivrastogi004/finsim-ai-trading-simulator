@@ -5,4 +5,5 @@ export interface PortfolioItem {
   shares: number;
   currentPrice: number;
   profit: number;
+  totalCost: number;
 }

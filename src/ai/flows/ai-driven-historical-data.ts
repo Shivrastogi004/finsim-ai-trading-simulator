@@ -52,16 +52,38 @@ const aiDrivenHistoricalDataFlow = ai.defineFlow(
       throw new Error('Could not determine sentiment.');
     }
 
-    const from = Math.floor(new Date(input.startDate).getTime() / 1000);
-    const to = Math.floor(new Date(input.endDate).getTime() / 1000);
-    const candleUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${input.ticker}&resolution=D&from=${from}&to=${to}&token=${input.apiKey}`;
-    const candleResponse = await fetch(candleUrl);
-    const historicalData = await candleResponse.json();
+    try {
+        const from = Math.floor(new Date(input.startDate).getTime() / 1000);
+        const to = Math.floor(new Date(input.endDate).getTime() / 1000);
+        const candleUrl = `https://finnhub.io/api/v1/stock/candle?symbol=${input.ticker}&resolution=D&from=${from}&to=${to}&token=${input.apiKey}`;
+        const candleResponse = await fetch(candleUrl);
+        
+        if (!candleResponse.ok) {
+             const errorBody = await candleResponse.text();
+             throw new Error(`Finnhub API request failed with status ${candleResponse.status}: ${errorBody}`);
+        }
 
-    return {
-      sentiment: sentimentOutput.sentiment,
-      explanation: sentimentOutput.explanation,
-      data: historicalData,
-    };
+        const historicalData = await candleResponse.json();
+
+        if (historicalData.s === 'no_data') {
+            return {
+                sentiment: sentimentOutput.sentiment,
+                explanation: sentimentOutput.explanation,
+                data: { error: `No historical data found for ticker ${input.ticker} in the specified date range.` },
+            };
+        }
+
+        return {
+          sentiment: sentimentOutput.sentiment,
+          explanation: sentimentOutput.explanation,
+          data: historicalData,
+        };
+    } catch(error: any) {
+         return {
+            sentiment: sentimentOutput.sentiment,
+            explanation: sentimentOutput.explanation,
+            data: { error: `An error occurred while fetching historical data: ${error.message}` },
+        };
+    }
   }
 );

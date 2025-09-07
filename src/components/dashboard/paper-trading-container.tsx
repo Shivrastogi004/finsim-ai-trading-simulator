@@ -70,15 +70,20 @@ export function PaperTradingContainer() {
 
                 const newCashBalance = cashBalance - tradeValue;
                 const existingShares = portfolioDoc.exists() ? portfolioDoc.data().shares : 0;
+                const existingCost = portfolioDoc.exists() ? portfolioDoc.data().totalCost : 0;
+
                 const newShares = existingShares + trade.shares;
+                const newTotalCost = existingCost + tradeValue;
                 
                 transaction.update(userDocRef, { cashBalance: newCashBalance });
                 transaction.set(portfolioDocRef, { 
                     name: stockInfo.name, 
                     shares: newShares,
                     currentPrice: stockInfo.price,
-                    profit: portfolioDoc.exists() ? portfolioDoc.data().profit : 0
-                });
+                    totalCost: newTotalCost,
+                    profit: (newShares * stockInfo.price) - newTotalCost,
+                }, { merge: true });
+
                  transaction.set(transactionDocRef, {
                     type: 'buy',
                     symbol: trade.symbol,
@@ -91,17 +96,26 @@ export function PaperTradingContainer() {
 
             } else { // Sell
                 const existingShares = portfolioDoc.exists() ? portfolioDoc.data().shares : 0;
+                const existingCost = portfolioDoc.exists() ? portfolioDoc.data().totalCost : 0;
+                const avgCost = existingShares > 0 ? existingCost / existingShares : 0;
+
                 if (existingShares < trade.shares) {
                     throw "You cannot sell more shares than you own.";
                 }
 
                 const newCashBalance = cashBalance + tradeValue;
                 const newShares = existingShares - trade.shares;
+                const costOfSoldShares = trade.shares * avgCost;
+                const newTotalCost = existingCost - costOfSoldShares;
 
                 transaction.update(userDocRef, { cashBalance: newCashBalance });
 
                 if (newShares > 0) {
-                    transaction.update(portfolioDocRef, { shares: newShares });
+                    transaction.update(portfolioDocRef, { 
+                        shares: newShares,
+                        totalCost: newTotalCost,
+                        profit: (newShares * stockInfo.price) - newTotalCost,
+                    });
                 } else {
                     transaction.delete(portfolioDocRef);
                 }
